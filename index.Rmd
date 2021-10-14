@@ -1,0 +1,123 @@
+---
+title: "Felidae (felinos) de Costa Rica"
+output: 
+  flexdashboard::flex_dashboard:
+    orientation: columns
+    vertical_layout: fill
+---
+
+```{r setup, include=FALSE}
+library(flexdashboard)
+```
+
+
+```{r carga librerias, message = FALSE, warning=FALSE}
+# Paquete para manipulación de datos
+library(dplyr)
+
+# Paquete para manejo de datos vectoriales
+library(sf)
+
+# Paquetes para manejo de datos raster
+library(terra)
+library(raster)
+
+# Paquete para mapas interactivos
+library(leaflet)
+
+library(DT)
+library(plotly)
+
+```
+
+```{r carga-datos, message = FALSE, warning=FALSE}
+# Datos vectoriales
+# Métodos de la clase sf
+#methods(class = "sf")
+# Lectura de una capa vectorial (GeoJSON) de provincias de Costa Rica
+provincias <-
+  st_read(
+    "https://github.com/tpb728O-programaciongeoespacialr/2021ii/raw/main/datos/ign/delimitacion-territorial-administrativa/provincias.geojson",
+    quiet = TRUE
+  )
+
+# Lectura de un archivo CSV con registros de presencia de felinos en Costa Rica
+felidae <-
+  st_read(
+    "/vsicurl/https://raw.githubusercontent.com/tpb728O-programaciongeoespacialr/2021ii/main/datos/gbif/felidae.csv",
+    options = c(
+      "X_POSSIBLE_NAMES=decimalLongitude",
+      "Y_POSSIBLE_NAMES=decimalLatitude"
+    ),
+    quiet = TRUE
+  )
+
+
+#ASIGNACION DE SISTEMA DE COORDENADAS
+# Asignación de un CRS al objeto felidae
+st_crs(felidae) <- 4326
+
+# Transformación del CRS del objeto provincias
+provincias <-
+  provincias %>%
+  st_transform(4326)
+
+#st_crs(provincias)
+
+# Lectura de una capa raster de altitud
+altitud <-
+  rast(
+    "/vsicurl/https://raw.githubusercontent.com/tpb728O-programaciongeoespacialr/2021ii/master/datos/worldclim/altitud.tif"
+  )
+```
+
+Column {data-width=650}
+-----------------------------------------------------------------------
+
+### Mapa de distribucion
+
+```{r mapa, warning=FALSE}
+# Conversión del objeto altitud a la clase RasterLayer
+altitud_rl <- raster::raster(altitud)
+
+# Mapa leaflet básico con capas de provincias y registros de presencia de felinos
+leaflet() %>%
+  addTiles() %>%
+  addRasterImage(
+    altitud_rl, 
+    opacity = 0.6
+  ) %>%    
+  addPolygons(
+    data = provincias,
+    color = "black",
+    fillColor = "transparent",
+    stroke = TRUE,
+    weight = 1.0,
+  ) %>%
+  addCircleMarkers(
+    data = felidae,
+    stroke = F,
+    radius = 4,
+    fillColor = 'orange',
+    fillOpacity = 1
+  )
+```
+
+Column {data-width=350}
+-----------------------------------------------------------------------
+
+### Registros de Presencia
+
+```{r tabla}
+felidae %>%
+  st_drop_geometry() %>%
+  dplyr::select(scientificName, stateProvince, locality, eventDate) %>% 
+datatable()
+```
+
+### Estacionalidad
+
+```{r}
+
+```
+
